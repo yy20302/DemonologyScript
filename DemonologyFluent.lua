@@ -108,7 +108,9 @@ local FluentUrls = {
     "https://twix.cyou/Fluent.txt",
     "https://ttwizz.pages.dev/Fluent.txt",
     "https://raw.githubusercontent.com/dawid-scripts/Fluent/main/Fluent.lua",
-    "https://pastebin.com/raw/6V7xQ7Z8",
+    "https://raw.githubusercontent.com/ttwizz/Fluent/main/Fluent.lua",
+    "https://cdn.jsdelivr.net/gh/dawid-scripts/Fluent@main/Fluent.lua",
+    "https://fastly.jsdelivr.net/gh/dawid-scripts/Fluent@main/Fluent.lua",
 }
 
 if typeof(script) == "Instance" and script:FindFirstChild("Fluent") and script:FindFirstChild("Fluent"):IsA("ModuleScript") then
@@ -183,7 +185,7 @@ local function CreateESP(obj, name, color)
 
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_Label"
-    billboard.Size = IsMobile and UDim2.new(0, 160, 0, 24) or UDim2.new(0, 200, 0, 30)
+    billboard.Size = UDim2.new(0, 200, 0, 30)
     billboard.StudsOffset = Vector3.new(0, 2.5, 0)
     billboard.AlwaysOnTop = true
     billboard.Adornee = obj
@@ -197,7 +199,7 @@ local function CreateESP(obj, name, color)
     label.TextStrokeTransparency = 0
     label.Text = name
     label.Font = Enum.Font.GothamBold
-    label.TextSize = IsMobile and 12 or 14
+    label.TextSize = 14
     label.Parent = billboard
 
     ESPObjects[obj] = { highlight = highlight, billboard = billboard }
@@ -895,37 +897,42 @@ end)
 -- 手动标记的任务完成状态（key=任务标题原文，value=true/false）
 local TaskManualState = {}
 
-local TaskPanel = Instance.new("Frame")
-TaskPanel.Name = "TaskPanel"
-TaskPanel.Size = IsMobile and UDim2.new(0, 280, 0, 220) or UDim2.new(0, 400, 0, 300)
-TaskPanel.Position = IsMobile and UDim2.new(0, 5, 1, -230) or UDim2.new(0, 10, 1, -320)
-TaskPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-TaskPanel.BackgroundTransparency = 0.2
-TaskPanel.BorderSizePixel = 0
-TaskPanel.Parent = ScreenGui
+local TaskPanel = nil
+local TaskTranslations = {}
 
-local taskCorner = Instance.new("UICorner")
-taskCorner.CornerRadius = UDim.new(0, 8)
-taskCorner.Parent = TaskPanel
+if not IsMobile then
+    TaskPanel = Instance.new("Frame")
+    TaskPanel.Name = "TaskPanel"
+    TaskPanel.Size = UDim2.new(0, 400, 0, 300)
+    TaskPanel.Position = UDim2.new(0, 10, 1, -320)
+    TaskPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    TaskPanel.BackgroundTransparency = 0.2
+    TaskPanel.BorderSizePixel = 0
+    TaskPanel.Parent = ScreenGui
 
-local taskStroke = Instance.new("UIStroke")
-taskStroke.Color = Color3.fromRGB(80, 80, 110)
-taskStroke.Thickness = 2
-taskStroke.Parent = TaskPanel
+    local taskCorner = Instance.new("UICorner")
+    taskCorner.CornerRadius = UDim.new(0, 8)
+    taskCorner.Parent = TaskPanel
 
-local taskLayout = Instance.new("UIListLayout")
-taskLayout.SortOrder = Enum.SortOrder.LayoutOrder
-taskLayout.Padding = UDim.new(0, 4)
-taskLayout.Parent = TaskPanel
+    local taskStroke = Instance.new("UIStroke")
+    taskStroke.Color = Color3.fromRGB(80, 80, 110)
+    taskStroke.Thickness = 2
+    taskStroke.Parent = TaskPanel
 
-local taskPadding = Instance.new("UIPadding")
-taskPadding.PaddingLeft = UDim.new(0, 10)
-taskPadding.PaddingRight = UDim.new(0, 10)
-taskPadding.PaddingTop = UDim.new(0, 8)
-taskPadding.PaddingBottom = UDim.new(0, 6)
-taskPadding.Parent = TaskPanel
+    local taskLayout = Instance.new("UIListLayout")
+    taskLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    taskLayout.Padding = UDim.new(0, 4)
+    taskLayout.Parent = TaskPanel
 
-local TaskTranslations = {
+    local taskPadding = Instance.new("UIPadding")
+    taskPadding.PaddingLeft = UDim.new(0, 10)
+    taskPadding.PaddingRight = UDim.new(0, 10)
+    taskPadding.PaddingTop = UDim.new(0, 8)
+    taskPadding.PaddingBottom = UDim.new(0, 6)
+    taskPadding.Parent = TaskPanel
+end
+
+TaskTranslations = {
     -- 完整句子（先长后短，有序数组）
     {en = "identify the correct ghost type", zh = "识别正确的鬼类型"},
     {en = "capture photo of the ghost", zh = "拍摄鬼的照片"},
@@ -1141,6 +1148,7 @@ end
 local lastTaskContentHash = ""
 
 local function RefreshTaskPanel()
+    if not TaskPanel or IsMobile then return end
     local board = FindTaskBoard()
     local taskItems = GetTaskItems(board)
 
@@ -1250,6 +1258,7 @@ local function RefreshTaskPanel()
 end
 
 task.spawn(function()
+    if IsMobile then return end
     while true do
         task.wait(1)
         RefreshTaskPanel()
@@ -1264,56 +1273,75 @@ end)
 local eventCooldowns = {}
 
 local function FluentNotify(title, content, subContent, duration)
-    if Fluent then
-        Fluent:Notify({
-            Title = title,
-            Content = content,
-            SubContent = subContent or "",
-            Duration = duration or 4
-        })
-    else
-        -- Fluent还没加载好，用临时通知兜底
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 380, 0, 60)
-        frame.Position = UDim2.new(1, -410, 0, 20)
-        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-        frame.BackgroundTransparency = 0.2
-        frame.Parent = ScreenGui
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = frame
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(100, 100, 150)
-        stroke.Thickness = 2
-        stroke.Parent = frame
-        local tl = Instance.new("TextLabel")
-        tl.Size = UDim2.new(1, -20, 0, 28)
-        tl.Position = UDim2.new(0, 10, 0, 4)
-        tl.BackgroundTransparency = 1
-        tl.Text = title
-        tl.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tl.TextStrokeColor3 = Color3.new(0, 0, 0)
-        tl.TextStrokeTransparency = 0.5
-        tl.Font = Enum.Font.GothamBold
-        tl.TextSize = 16
-        tl.TextXAlignment = Enum.TextXAlignment.Left
-        tl.Parent = frame
-        local dl = Instance.new("TextLabel")
-        dl.Size = UDim2.new(1, -20, 0, 22)
-        dl.Position = UDim2.new(0, 10, 0, 32)
-        dl.BackgroundTransparency = 1
-        dl.Text = content
-        dl.TextColor3 = Color3.fromRGB(220, 220, 220)
-        dl.TextStrokeColor3 = Color3.new(0, 0, 0)
-        dl.TextStrokeTransparency = 0.6
-        dl.Font = Enum.Font.Gotham
-        dl.TextSize = 14
-        dl.TextXAlignment = Enum.TextXAlignment.Left
-        dl.Parent = frame
-        task.delay(duration or 4, function()
-            if frame and frame.Parent then frame:Destroy() end
-        end)
-    end
+    -- 用我们自己的通知系统（不受Fluent UI开关影响）
+    local frame = Instance.new("Frame")
+    frame.Size = IsMobile and UDim2.new(0, 280, 0, 50) or UDim2.new(0, 380, 0, 60)
+    frame.Position = IsMobile and UDim2.new(1, -295, 0, 15) or UDim2.new(1, -410, 0, 20)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    frame.BackgroundTransparency = 0.1
+    frame.BorderSizePixel = 0
+    frame.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(100, 100, 150)
+    stroke.Thickness = 2
+    stroke.Parent = frame
+
+    local tl = Instance.new("TextLabel")
+    tl.Size = UDim2.new(1, -20, 0, 24)
+    tl.Position = UDim2.new(0, 10, 0, 4)
+    tl.BackgroundTransparency = 1
+    tl.Text = title
+    tl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tl.TextStrokeColor3 = Color3.new(0, 0, 0)
+    tl.TextStrokeTransparency = 0.4
+    tl.Font = Enum.Font.GothamBold
+    tl.TextSize = IsMobile and 14 or 16
+    tl.TextXAlignment = Enum.TextXAlignment.Left
+    tl.Parent = frame
+
+    local dl = Instance.new("TextLabel")
+    dl.Size = UDim2.new(1, -20, 0, 20)
+    dl.Position = UDim2.new(0, 10, 0, 28)
+    dl.BackgroundTransparency = 1
+    dl.Text = content
+    dl.TextColor3 = Color3.fromRGB(220, 220, 220)
+    dl.TextStrokeColor3 = Color3.new(0, 0, 0)
+    dl.TextStrokeTransparency = 0.5
+    dl.Font = Enum.Font.Gotham
+    dl.TextSize = IsMobile and 12 or 14
+    dl.TextXAlignment = Enum.TextXAlignment.Left
+    dl.TextWrapped = true
+    dl.Parent = frame
+
+    -- 出现动画
+    frame.Position = UDim2.new(1, 10, frame.Position.Y.Scale, frame.Position.Y.Offset)
+    frame.Visible = true
+    task.spawn(function()
+        for i = 0, 1, 0.1 do
+            if not frame or not frame.Parent then return end
+            frame.Position = UDim2.new(1, -frame.Size.X.Offset - 15 + (1-i)*300, frame.Position.Y.Scale, frame.Position.Y.Offset)
+            task.wait(0.03)
+        end
+    end)
+
+    task.delay(duration or 4, function()
+        if frame and frame.Parent then
+            -- 消失动画
+            for i = 1, 0, -0.1 do
+                if not frame or not frame.Parent then return end
+                frame.BackgroundTransparency = 0.1 + (1-i)*0.9
+                if tl then tl.TextTransparency = 1-i end
+                if dl then dl.TextTransparency = 1-i end
+                task.wait(0.03)
+            end
+            if frame then frame:Destroy() end
+        end
+    end)
 end
 
 local function NotifyWithCooldown(eventKey, title, content, subContent, cooldown, duration)
@@ -1941,8 +1969,8 @@ end
 --===================================
 
 local UISettings = {
-        TabWidth = IsMobile and 100 or 160,
-        Size = IsMobile and { 420, 360 } or { 580, 460 },
+        TabWidth = IsMobile and 80 or 160,
+        Size = IsMobile and { 340, 280 } or { 580, 460 },
         Theme = "Amethyst",
         Acrylic = false,
         Transparency = true,
@@ -1975,8 +2003,9 @@ local UISettings = {
     UISettings.__LAST_RUN__ = os.date()
     InterfaceManager:ExportSettings()
 
+local MainWindow = nil
     do
-        local Window = Fluent:CreateWindow({
+        MainWindow = Fluent:CreateWindow({
             Title = "恶魔学辅助",
             SubTitle = "透视 | 速度 | 夜视 | 猎杀提醒",
             TabWidth = UISettings.TabWidth,
@@ -2227,9 +2256,12 @@ local UISettings = {
     Notify("脚本加载完成！")
 
     -- 移动端按钮绑定切换GUI
-    if IsMobile and MobileToggleBtn then
+    if IsMobile and MobileToggleBtn and Fluent then
+        MobileToggleBtn.TouchTap:Connect(function()
+            pcall(function() Fluent:Toggle() end)
+        end)
         MobileToggleBtn.MouseButton1Click:Connect(function()
-            Fluent:Toggle()
+            pcall(function() Fluent:Toggle() end)
         end)
     end
 end
