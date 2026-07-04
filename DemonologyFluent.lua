@@ -1980,7 +1980,7 @@ local UISettings = {
         Theme = "Amethyst",
         Acrylic = false,
         Transparency = true,
-        MinimizeKey = IsMobile and "Button" or "RightShift",
+        MinimizeKey = "",
         ShowNotifications = true,
         ShowWarnings = true
     }
@@ -2235,17 +2235,6 @@ local Window = nil
             InterfaceManager:ExportSettings()
         end
     })
-
-    UISection:AddKeybind("MinimizeKeybind", {
-        Title = "切换键",
-        Description = "切换 UI 显示/隐藏",
-        Default = Fluent.MinimizeKey,
-        ChangedCallback = function(Value)
-            UISettings.MinimizeKey = Value ~= Enum.UserInputType.MouseButton2 and UserInputService:GetStringForKeyCode(Value) or "RMB"
-            InterfaceManager:ExportSettings()
-        end
-    })
-    Fluent.MinimizeKeybind = Fluent.Options.MinimizeKeybind
 
     Window:SelectTab(1)
 
