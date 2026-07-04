@@ -1273,7 +1273,9 @@ end)
 local eventCooldowns = {}
 
 local function FluentNotify(title, content, subContent, duration)
-    -- 用我们自己的通知系统（不受Fluent UI开关影响）
+    duration = duration or 4
+    local Debris = game:GetService("Debris")
+
     local frame = Instance.new("Frame")
     frame.Size = IsMobile and UDim2.new(0, 280, 0, 50) or UDim2.new(0, 380, 0, 60)
     frame.Position = IsMobile and UDim2.new(1, -295, 0, 15) or UDim2.new(1, -410, 0, 20)
@@ -1318,30 +1320,8 @@ local function FluentNotify(title, content, subContent, duration)
     dl.TextWrapped = true
     dl.Parent = frame
 
-    -- 出现动画
-    frame.Position = UDim2.new(1, 10, frame.Position.Y.Scale, frame.Position.Y.Offset)
-    frame.Visible = true
-    task.spawn(function()
-        for i = 0, 1, 0.1 do
-            if not frame or not frame.Parent then return end
-            frame.Position = UDim2.new(1, -frame.Size.X.Offset - 15 + (1-i)*300, frame.Position.Y.Scale, frame.Position.Y.Offset)
-            task.wait(0.03)
-        end
-    end)
-
-    task.delay(duration or 4, function()
-        if frame and frame.Parent then
-            -- 消失动画
-            for i = 1, 0, -0.1 do
-                if not frame or not frame.Parent then return end
-                frame.BackgroundTransparency = 0.1 + (1-i)*0.9
-                if tl then tl.TextTransparency = 1-i end
-                if dl then dl.TextTransparency = 1-i end
-                task.wait(0.03)
-            end
-            if frame then frame:Destroy() end
-        end
-    end)
+    -- 用Debris确保一定能销毁
+    Debris:AddItem(frame, duration)
 end
 
 local function NotifyWithCooldown(eventKey, title, content, subContent, cooldown, duration)
@@ -1727,11 +1707,20 @@ task.spawn(function()
     end
 end)
 
+-- 提前声明猎杀相关变量
+local huntAlertLabel = nil
+local huntNotifFrame = nil
+local huntAlertConn = nil
+
 workspace.ChildAdded:Connect(function(child)
     if child.Name == "Ghost" then
         task.wait(0.5)
         local ghost = workspace:FindFirstChild("Ghost")
         if ghost then
+            -- 确保 huntNotifFrame 存在
+            if not huntNotifFrame then
+                SetupHuntAlert()
+            end
             ghost.DescendantAdded:Connect(function(desc)
                 if desc:IsA("Sound") then
                     if desc.Name == "Hunt" then
@@ -1773,14 +1762,31 @@ workspace.ChildAdded:Connect(function(child)
                     end
                 end
             end)
+
+            -- 同时扫描Ghost下已有的Sound（可能Hunt Sound已经存在）
+            for _, desc in ipairs(ghost:GetDescendants()) do
+                if desc:IsA("Sound") and desc.Name == "Hunt" then
+                    desc:GetPropertyChangedSignal("Playing"):Connect(function()
+                        if desc.IsPlaying then
+                            NotifyWithCooldown(
+                                "hunt",
+                                "⚠ 猎杀警告",
+                                "鬼开始猎杀了！快躲起来！",
+                                "Ghost.Hunt",
+                                12,
+                                4
+                            )
+                            if huntNotifFrame then
+                                huntNotifFrame.Visible = true
+                            end
+                        end
+                    end)
+                end
+            end
         end
     end
 end)
 
-
-local huntAlertLabel = nil
-
-local huntNotifFrame = nil
 
 local function SetupHuntAlert()
     if huntNotifFrame then return end
@@ -1969,8 +1975,8 @@ end
 --===================================
 
 local UISettings = {
-        TabWidth = IsMobile and 80 or 160,
-        Size = IsMobile and { 340, 280 } or { 580, 460 },
+        TabWidth = IsMobile and 70 or 160,
+        Size = IsMobile and { 380, 320 } or { 580, 460 },
         Theme = "Amethyst",
         Acrylic = false,
         Transparency = true,
@@ -2003,9 +2009,9 @@ local UISettings = {
     UISettings.__LAST_RUN__ = os.date()
     InterfaceManager:ExportSettings()
 
-local MainWindow = nil
+local Window = nil
     do
-        MainWindow = Fluent:CreateWindow({
+        Window = Fluent:CreateWindow({
             Title = "恶魔学辅助",
             SubTitle = "透视 | 速度 | 夜视 | 猎杀提醒",
             TabWidth = UISettings.TabWidth,
@@ -2256,13 +2262,23 @@ local MainWindow = nil
     Notify("脚本加载完成！")
 
     -- 移动端按钮绑定切换GUI
-    if IsMobile and MobileToggleBtn and Fluent then
-        MobileToggleBtn.TouchTap:Connect(function()
+    if IsMobile and MobileToggleBtn then
+        local uiVisible = true
+        local function ToggleUI()
+            uiVisible = not uiVisible
+            -- 找到Fluent窗口的GUI元素
+            pcall(function()
+                for _, v in ipairs(ScreenGui:GetChildren()) do
+                    if v:IsA("Frame") or v:IsA("ScrollingFrame") then
+                        v.Visible = uiVisible
+                    end
+                end
+            end)
+            -- 也尝试Fluent自带的Toggle
             pcall(function() Fluent:Toggle() end)
-        end)
-        MobileToggleBtn.MouseButton1Click:Connect(function()
-            pcall(function() Fluent:Toggle() end)
-        end)
+        end
+        MobileToggleBtn.MouseButton1Click:Connect(ToggleUI)
+        MobileToggleBtn.TouchTap:Connect(ToggleUI)
     end
 end
 
